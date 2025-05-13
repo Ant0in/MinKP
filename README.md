@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 MD041 -->
+<!-- markdownlint-disable MD033 MD041 MD007 -->
 
 <!-- pretty badges -->
 <div align="center">
@@ -70,7 +70,6 @@ Where:
     - **0**: Primal Integer Solution.
     - **1**: Primal Relaxed Solution.
     - **2**: Dual Relaxed Solution.
-
 
 ## 🧪 Testing with pytest
 
