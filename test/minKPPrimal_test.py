@@ -1,5 +1,4 @@
 
-
 from minKPTestHelper import TestMinKPHelper
     
 # Test each test case with the specified mode 0
