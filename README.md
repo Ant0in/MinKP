@@ -57,11 +57,19 @@ For more detailed problem specifications and additional information, please refe
 
 ### Running the Solver
 
-To run the solver, you can use the following command line :
+To run the solver, you can use the following:
 
 ```bash
-python3 ./src/minKP.py
+python3 src/minKP.py ./my/kp/fp/data.txt 0  # -v flag can be added for extra verbose
 ```
+
+Where:
+
+- **`./my/kp/fp/data.txt`** is the **path** to the input file containing the **knapsack problem data**.
+- **`0`** is the **mode** of the solver (choose between *0*, *1*, or *2*):
+    - **0**: Primal Integer Solution.
+    - **1**: Primal Relaxed Solution.
+    - **2**: Dual Relaxed Solution.
 
 
 ## 🧪 Testing with pytest

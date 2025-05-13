@@ -1,6 +1,28 @@
 
 from pulp import LpProblem, LpVariable, LpMinimize, lpSum, LpStatus, LpStatusOptimal, LpStatusNotSolved, LpBinary, PULP_CBC_CMD
 import os
+import argparse
+
+
+
+class ArgParser:
+
+    @staticmethod
+    def parseArgs() -> dict[str, any]:
+
+        parser: argparse.ArgumentParser = argparse.ArgumentParser(description="MinKP ArgParser")
+        parser.add_argument("filePath", type=str, help="Path to the file containing the knapsack problem data.")
+        parser.add_argument("mode", type=int, choices=[0, 1, 2], help="Mode of the solver (0: Primal Integer, 1: Primal Relaxed, 2: Dual Relaxed).")
+        parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
+    
+        # parse the arguments
+        args: argparse.Namespace = parser.parse_args()
+
+        return {
+            "fp": str(args.filePath),
+            "mode": int(args.mode),
+            "verbose": bool(args.verbose)
+        }
 
 
 
@@ -179,11 +201,11 @@ class MinKPPrimalRelaxedSolution(MinKP):
 
     @staticmethod
     def solveSingleKnapsack(data: dict, v: bool) -> bool:
-        super().solveSingleKnapsack(data=data, v=v)
+        raise NotImplementedError("This method is not implemented for the Primal Relaxed solution.")
 
     @staticmethod
     def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
-        super().solveMultipleKnapsacks(data=data, v=v)
+        raise NotImplementedError("This method is not implemented for the Primal Relaxed solution.")
 
 
 
@@ -191,11 +213,11 @@ class MinKPDualRelaxedSolution(MinKP):
 
     @staticmethod
     def solveSingleKnapsack(data: dict, v: bool) -> bool:
-        super().solveSingleKnapsack(data=data, v=v)
+        raise NotImplementedError("This method is not implemented for the Dual Relaxed solution.")
 
     @staticmethod
     def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
-        super().solveMultipleKnapsacks(data=data, v=v)
+        raise NotImplementedError("This method is not implemented for the Dual Relaxed solution.")
 
 
 
@@ -204,6 +226,13 @@ class MinKPDualRelaxedSolution(MinKP):
 if __name__ == "__main__":
     
     # Example usage
-    m: MinKP = MinKP('res/multi_minKP_35_5.txt', mode=0, verbose=False)
+    # m: MinKP = MinKP('res/multi_minKP_35_5.txt', mode=0, verbose=False)
+    # m.solve()
+
+    # Command line usage
+    # python3 src/minKP.py -fp res/multi_minKP_35_5.txt -m 0 -v
+
+    args: dict = ArgParser.parseArgs()
+    m: MinKP = MinKP(fp=args['fp'], mode=args['mode'], verbose=args['verbose'])
     m.solve()
 
