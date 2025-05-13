@@ -29,4 +29,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest test/minKPPrimal_test.py
+          pytest test/minKPPrimal_test.py test/minKPPrimalRelaxed_test.py
