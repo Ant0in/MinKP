@@ -1,16 +1,18 @@
 
-from pulp import LpProblem, LpVariable, LpMinimize, lpSum, LpStatus, LpStatusOptimal
+from pulp import LpProblem, LpVariable, LpMinimize, lpSum, LpStatus, LpStatusOptimal, LpStatusNotSolved, LpBinary, PULP_CBC_CMD
 from KPParser import KPParser
 
 
 
 class MinKP:
     
-    def __init__(self, fp: str, mode: int = 0) -> None:
+    def __init__(self, fp: str, mode: int = 0, verbose: bool = True) -> None:
+        self.fp: str = fp
         self.data: dict = KPParser.parseFile(fp=fp)
         self.mode: int = mode
+        self.verbose: bool = verbose
 
-    def solve(self) -> any:
+    def solve(self) -> bool:
 
         assert self.data is not None, "Data is Nill, parse most likely failed."
 
@@ -22,58 +24,114 @@ class MinKP:
             case 2: solver = MinKPDualRelaxedSolution
             case _: raise ValueError(f"Invalid mode: {self.mode}. Must be 0, 1, or 2.")
 
-        print(f"[i] Solving MinKP with {solver.__name__} (mode={self.mode})")
-
-        # Solve the problem based on the number of knapsacks
-        if self.data["numberOfKnapsacks"] == 1: return solver.solveSingleKnapsack(data=self.data)
-        elif self.data["numberOfKnapsacks"] > 1: return solver.solveMultipleKnapsacks(data=self.data)
+        algorithm: callable | None = None
+        if (self.data['numberOfKnapsacks'] == 1): algorithm = solver.solveSingleKnapsack
+        elif (self.data['numberOfKnapsacks'] > 1): algorithm = solver.solveMultipleKnapsacks
         else: raise ValueError(f"Invalid number of knapsacks: {self.data['numberOfKnapsacks']}. Must be > 0.")
 
+
+        print(f"[i] Solving MinKP with {solver.__name__} (mode={self.mode}) for file {self.fp}... (using {algorithm.__name__})")
+
+        # Solve the problem based on the number of knapsacks
+        return algorithm(data=self.data, v=self.verbose)
+
     @staticmethod
-    def solveSingleKnapsack(data: dict) -> any:
-        raise NotImplementedError("This method should be implemented in the subclass.")
-    
-    @staticmethod
-    def solveMultipleKnapsacks(data: dict) -> any:
+    def solveSingleKnapsack(data: dict, v: bool) -> bool:
         raise NotImplementedError("This method should be implemented in the subclass.")
 
+    @staticmethod
+    def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
+        raise NotImplementedError("This method should be implemented in the subclass.")
 
 
 class MinKPPrimalIntegerSolution(MinKP):
 
     @staticmethod
-    def solveSingleKnapsack(data: dict) -> ...:
+    def solveSingleKnapsack(data: dict, v: bool) -> bool:
+        # Create the problem
+        problem: LpProblem = LpProblem("MinKP", LpMinimize)
+        # Create decision variables (x is a binary variable, 0 or 1, representing whether an item is included in the knapsack)
+        x = LpVariable.dicts("x", range(data["numberOfItems"]), lowBound=0, upBound=1, cat="Binary")
+        # Objective function (minimize total cost)
+        problem += lpSum(data["costs"][i] * x[i] for i in range(data["numberOfItems"])), "TotalCost"
+        # Constraints (ensure the total weight of selected items is greater than or equal to the demand)
+        problem += lpSum(data["weights"][i] * x[i] for i in range(data["numberOfItems"])) >= data["demands"][0], "WeightConstraint"
+        # Solve the problem and print the results
+        problem.solve(PULP_CBC_CMD(msg=v))
+        MinKPPrimalIntegerSolution.printSingleKnapsackResults(problem=problem, data=data, x=x)
+        return problem.status == LpStatusOptimal
+     
+    @staticmethod
+    def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
         
         # Create the problem
-        prob = LpProblem("MinKP", LpMinimize)
+        problem: LpProblem = LpProblem("MinKP", LpMinimize)
+        # Create decision variables (x is a binary variable, 0 or 1, representing whether an item is included in the nth knapsack)
+        x = [[LpVariable(f"x_{i}_{j}", cat=LpBinary) for j in range(data["numberOfKnapsacks"])] for i in range(data["numberOfItems"])]
+        # Objective function (minimize total cost)
+        problem += lpSum(data["costs"][i] * x[i][j] for i in range(data["numberOfItems"]) for j in range(data["numberOfKnapsacks"])), "TotalCost"
+        # Constraint 1 (ensure the total weight of selected items is greater than or equal to the demand for each knapsack)
+        # Constraint 2 (ensure each item is assigned to at most one knapsack)
+        for j in range(data["numberOfKnapsacks"]): problem += lpSum(data["weights"][i] * x[i][j] for i in range(data["numberOfItems"])) >= data["demands"][j], f"WeightConstraint_{j}"
+        for i in range(data["numberOfItems"]): problem += lpSum(x[i][j] for j in range(data["numberOfKnapsacks"])) <= 1, f"ItemAssignment_{i}"
+        # Solve the problem and print the results
+        problem.solve(PULP_CBC_CMD(msg=v))
+        MinKPPrimalIntegerSolution.printMultipleKnapsackResults(problem=problem, data=data, x=x)
+        return problem.status == LpStatusOptimal
 
     @staticmethod
-    def solveMultipleKnapsacks(data: dict) -> ...:
-        ...
+    def printSingleKnapsackResults(problem: LpProblem, data: dict, x: LpVariable) -> None:
+
+        print(f"[{'✓' if problem.status == LpStatusOptimal else 'X'}] Status: {LpStatus[problem.status]}\n")
+        if problem.status != LpStatusOptimal:
+            return
+        
+        print(f"[c] Total Cost: {problem.objective.value()}")
+        print(f"[w] Total Weight: {lpSum(data['weights'][i] * x[i].varValue for i in range(data['numberOfItems']))} (should be >= {data['demands'][0]})\n")
+
+        print("[i] Selected Items:")
+        for i in range(data["numberOfItems"]):
+            if x[i].varValue > 0: print(f"► Item {i+1}: Cost={data['costs'][i]}, Weight={data['weights'][i]}")
+
+    @staticmethod
+    def printMultipleKnapsackResults(problem: LpProblem, data: dict, x: list[list[LpVariable]]) -> None:
+
+        print(f"[{'✓' if problem.status == LpStatusOptimal else 'X'}] Status: {LpStatus[problem.status]}\n")
+        if problem.status != LpStatusOptimal:
+            return
+        
+        print(f"[c] Total Cost: {problem.objective.value()}")
+        print(f"[w] Total Weight: {lpSum(data['weights'][i] * x[i][j].varValue for i in range(data['numberOfItems']) for j in range(data['numberOfKnapsacks']))} (should be >= {sum(data['demands'])})")
+
+        for j in range(data["numberOfKnapsacks"]):
+            print(f"\n[w] Total Weight for Knapsack {j+1}: {lpSum(data['weights'][i] * x[i][j].varValue for i in range(data['numberOfItems']))} (should be >= {data['demands'][j]})")
+            print("[i] Selected Items:")
+            for i in range(data["numberOfItems"]):
+                if x[i][j].varValue > 0: print(f"► Item {i+1}: Cost={data['costs'][i]}, Weight={data['weights'][i]}")
 
 
 
 class MinKPPrimalRelaxedSolution(MinKP):
 
     @staticmethod
-    def solveSingleKnapsack(data: dict) -> ...:
-        ...
+    def solveSingleKnapsack(data: dict, v: bool) -> bool:
+        super().solveSingleKnapsack(data=data, v=v)
 
     @staticmethod
-    def solveMultipleKnapsacks(data: dict) -> ...:
-        ...
+    def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
+        super().solveMultipleKnapsacks(data=data, v=v)
 
 
 
 class MinKPDualRelaxedSolution(MinKP):
 
     @staticmethod
-    def solveSingleKnapsack(data: dict) -> ...:
-        ...
+    def solveSingleKnapsack(data: dict, v: bool) -> bool:
+        super().solveSingleKnapsack(data=data, v=v)
 
     @staticmethod
-    def solveMultipleKnapsacks(data: dict) -> ...:
-        ...
+    def solveMultipleKnapsacks(data: dict, v: bool) -> bool:
+        super().solveMultipleKnapsacks(data=data, v=v)
 
 
 
@@ -82,6 +140,6 @@ class MinKPDualRelaxedSolution(MinKP):
 if __name__ == "__main__":
     
     # Example usage
-    m: MinKP = MinKP('res/mono_minKP_15_1.txt', mode=0)
+    m: MinKP = MinKP('res/multi_minKP_35_5.txt', mode=0, verbose=False)
     m.solve()
 
