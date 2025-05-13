@@ -4,7 +4,7 @@
 <div align="center">
   <img src="https://img.shields.io/badge/Version-1.0.0_alpha-red" alt="Version Badge">
   <img src="https://img.shields.io/badge/License-MIT-dark_green.svg" alt="License Badge"/>
-  <img src="https://img.shields.io/badge/Language-Python-blue" alt="Language Badge"/>
+  <img src="https://img.shields.io/badge/Language-Python--3.12-blue" alt="Language Badge"/>
   <img src="https://img.shields.io/badge/School-ULB-yellow" alt="School Badge"/>
   <img src="https://github.com/Ant0in/MinKP/actions/workflows/ci.yml/badge.svg" alt="Build Status"/>
 </div>
