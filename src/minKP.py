@@ -197,7 +197,6 @@ class MinKPPrimalIntegerSolution(MinKP):
 
 
 
-
 class MinKPPrimalRelaxedSolution(MinKP):
 
     @staticmethod
@@ -279,6 +278,8 @@ class MinKPDualRelaxedSolution(MinKP):
         # again, we don't need to print the results for the dual problem, since they do convey useful information, but
         # not easily readable and relatable to the original primal problem
         return problem.status == LpStatusOptimal
+
+
 
 
 if __name__ == "__main__":
